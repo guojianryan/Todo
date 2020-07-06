@@ -10,13 +10,16 @@ import UIKit
 
 class ViewController: UITableViewController {
 
-    var itemArray = ["Find Mick", "Buy eggs", "Destroy Demogorgon"]
-
+    var itemArray : [String] = []
+    
+    let defaults = UserDefaults()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         self.tableView.separatorStyle = .none
-        // Do any additional setup after loading the view.
+        if let items = defaults.array(forKey: "ToDoListArray") as? [String] {
+            self.itemArray = items
+        }
     }
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return itemArray.count;
@@ -53,7 +56,7 @@ class ViewController: UITableViewController {
         
         let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
             self.itemArray.append(textField.text!)
-            
+            self.defaults.set(self.itemArray,forKey: "ToDoListArray")
             self.tableView.reloadData()
         }
         
