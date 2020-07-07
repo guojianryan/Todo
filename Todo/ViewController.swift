@@ -10,15 +10,19 @@ import UIKit
 
 class ViewController: UITableViewController {
 
-    var itemArray : [String] = []
+    var itemArray : [ToDoItem] = []
     
     let defaults = UserDefaults()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         self.tableView.separatorStyle = .none
-        if let items = defaults.array(forKey: "ToDoListArray") as? [String] {
-            self.itemArray = items
+        
+        let itemData = self.defaults.object(forKey: "ToDoListArray") as? NSData
+
+        if itemData != nil {
+            self.itemArray = NSKeyedUnarchiver.unarchiveObject(with: itemData! as Data) as? [ToDoItem] ?? []
+
         }
     }
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -29,24 +33,25 @@ class ViewController: UITableViewController {
         let cell = self.tableView.dequeueReusableCell(withIdentifier: "ToDoCell", for: indexPath)
         
         // set the text from the data model
-        cell.textLabel?.text = self.itemArray[indexPath.row]
+        cell.textLabel?.text = self.itemArray[indexPath.row].title
+        
+        if self.itemArray[indexPath.row].done == true {
+            cell.accessoryType = .checkmark
+        }else {
+            cell.accessoryType = .none
+        }
         
         return cell
     }
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let currentCell = tableView.cellForRow(at: indexPath) as UITableViewCell?
-
+        
+        self.itemArray[indexPath.row].done = !self.itemArray[indexPath.row].done
+        
         if currentCell != nil {
             tableView.deselectRow(at: indexPath, animated: true)
-            
-            if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark {
-                tableView.cellForRow(at: indexPath)?.accessoryType = .none
-            }else {
-                tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-            }
-            
-            print(currentCell!.textLabel!.text!)
+            self.persistAndReload()
         }
     }
     @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
@@ -55,9 +60,11 @@ class ViewController: UITableViewController {
         var textField = UITextField()
         
         let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
-            self.itemArray.append(textField.text!)
-            self.defaults.set(self.itemArray,forKey: "ToDoListArray")
-            self.tableView.reloadData()
+            let item : ToDoItem = ToDoItem(title: textField.text!, done: false)
+            self.itemArray.append(item)
+            
+            self.persistAndReload()
+            
         }
         
         alert.addTextField { (alertTextField) in
@@ -67,6 +74,12 @@ class ViewController: UITableViewController {
         alert.addAction(action)
         
         present(alert, animated: true, completion: nil)
+    }
+    
+    func persistAndReload() {
+        let itemData = NSKeyedArchiver.archivedData(withRootObject: self.itemArray)
+        self.defaults.set(itemData,forKey: "ToDoListArray")
+        self.tableView.reloadData()
     }
 }
 
