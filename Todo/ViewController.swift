@@ -7,24 +7,24 @@
 //
 
 import UIKit
+import CoreData
 
 class ViewController: UITableViewController {
 
     var itemArray : [ToDoItem] = []
-    
-    let defaults = UserDefaults()
+        
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        self.tableView.separatorStyle = .none
         
-        let itemData = self.defaults.object(forKey: "ToDoListArray") as? NSData
-
-        if itemData != nil {
-            self.itemArray = NSKeyedUnarchiver.unarchiveObject(with: itemData! as Data) as? [ToDoItem] ?? []
-
-        }
+        self.loadData()
+        
+        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
+    
     }
+    
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return itemArray.count;
     }
@@ -60,7 +60,11 @@ class ViewController: UITableViewController {
         var textField = UITextField()
         
         let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
-            let item : ToDoItem = ToDoItem(title: textField.text!, done: false)
+            
+            let item : ToDoItem = ToDoItem(context: self.context)
+            item.done = false
+            item.title = textField.text!
+            
             self.itemArray.append(item)
             
             self.persistAndReload()
@@ -76,10 +80,24 @@ class ViewController: UITableViewController {
         present(alert, animated: true, completion: nil)
     }
     
-    func persistAndReload() {
-        let itemData = NSKeyedArchiver.archivedData(withRootObject: self.itemArray)
-        self.defaults.set(itemData,forKey: "ToDoListArray")
+    func persistAndReload() {        
+        do {
+            try context.save()
+        } catch {
+            print("Error saving context, \(error)")
+        }
+        
         self.tableView.reloadData()
     }
+    
+        
+        func loadData() {
+                do {
+                    let request : NSFetchRequest<ToDoItem> = ToDoItem.fetchRequest()
+                    self.itemArray = try context.fetch(request)
+                } catch {
+                    print("Error fetching data from context, \(error)")
+                }
+        }
 }
 
