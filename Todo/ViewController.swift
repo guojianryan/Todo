@@ -12,6 +12,12 @@ import CoreData
 class ViewController: UITableViewController {
 
     var itemArray : [ToDoItem] = []
+    
+    var selecteCategory : ToDoCategory? {
+        didSet{
+            loadData()
+        }
+    }
         
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
 
@@ -33,6 +39,7 @@ class ViewController: UITableViewController {
         let cell = self.tableView.dequeueReusableCell(withIdentifier: "ToDoCell", for: indexPath)
         
         // set the text from the data model
+        
         cell.textLabel?.text = self.itemArray[indexPath.row].title
         
         if self.itemArray[indexPath.row].done == true {
@@ -64,6 +71,7 @@ class ViewController: UITableViewController {
             let item : ToDoItem = ToDoItem(context: self.context)
             item.done = false
             item.title = textField.text!
+            item.parentCategory = self.selecteCategory
             
             self.itemArray.append(item)
             
@@ -80,7 +88,7 @@ class ViewController: UITableViewController {
         present(alert, animated: true, completion: nil)
     }
     
-    func persistAndReload() {        
+    func persistAndReload() {
         do {
             try context.save()
         } catch {
@@ -91,13 +99,44 @@ class ViewController: UITableViewController {
     }
     
         
-        func loadData() {
-                do {
-                    let request : NSFetchRequest<ToDoItem> = ToDoItem.fetchRequest()
-                    self.itemArray = try context.fetch(request)
-                } catch {
-                    print("Error fetching data from context, \(error)")
+    func loadData(with request: NSFetchRequest<ToDoItem>  = ToDoItem.fetchRequest(),predicate: NSPredicate? = nil) {
+            do {
+                let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", self.selecteCategory!.name!)
+                if predicate != nil {
+                    let compoundPredicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate, predicate!])
+                    request.predicate = compoundPredicate
+                }else {
+                    request.predicate = categoryPredicate
                 }
+                self.itemArray = try context.fetch(request)
+            } catch {
+                print("Error fetching data from context, \(error)")
+            }
+            tableView.reloadData()
         }
+}
+
+//MARK: Search Bar
+extension ViewController : UISearchBarDelegate {
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        let request: NSFetchRequest<ToDoItem> = ToDoItem.fetchRequest()
+        
+        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+        
+        loadData(with: request, predicate: NSPredicate(format : "title CONTAINS[cd] %@ ", searchBar.text!))
+    }
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchText.count == 0 {
+            loadData()
+            
+            DispatchQueue.main.async{
+                  searchBar.resignFirstResponder()
+            }
+        }
+    }
+    
+    
 }
 
